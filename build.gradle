@@ -1,0 +1,116 @@
+plugins {
+    id 'org.springframework.boot' version '1.5.4.RELEASE' 
+    id 'io.spring.dependency-management' version '1.0.2.RELEASE' 
+}
+
+
+allprojects {
+    version = '2'
+    group = 'com.iqmsoft.boot.kafka'
+
+    apply plugin: 'java'
+	apply plugin: 'eclipse'
+	apply plugin: 'eclipse-wtp'
+
+    targetCompatibility = sourceCompatibility = JavaVersion.VERSION_1_8
+
+    repositories {
+        jcenter()
+        mavenCentral()
+        maven { url "https://repo.spring.io/snapshot" }
+        maven { url "https://repo.spring.io/milestone" }
+    }
+}
+
+subprojects {
+
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'io.spring.dependency-management'
+
+    dependencyManagement {
+        imports {
+            mavenBom 'org.springframework.boot:spring-boot-dependencies:1.5.4.RELEASE'
+            mavenBom 'org.springframework.cloud:spring-cloud-dependencies:Brixton.BUILD-SNAPSHOT'
+        }
+    }
+
+    springBoot { executable = true }
+
+    dependencies {
+
+        compile 'org.projectlombok:lombok'
+        compile 'org.springframework.cloud:spring-cloud-starter-stream-kafka'
+        runtime 'org.springframework.boot:spring-boot-devtools'
+		runtime 'org.springframework.boot:spring-boot-starter-web'
+        testCompile 'org.springframework.boot:spring-boot-starter-test'
+    }
+}
+
+project(':Api') {
+
+    jar.baseName = 'api'
+	bootRepackage.enabled = false
+
+}
+
+project(':Greater') {
+    jar.baseName = 'greater'
+    dependencies { compile project(':Api') }
+}
+
+project(':MessagesReceiver') {
+    jar.baseName = 'messages-receiver'
+    test.dependsOn ':Greater:test'
+    test.shouldRunAfter ':Greater:test'
+}
+
+project(':UpperCaser') {
+    jar.baseName = 'upper-caser'
+    dependencies { compile project(':Api') }
+    test.dependsOn ':Greater:test'
+    test.shouldRunAfter ':Greater:test'
+}
+
+project(':Tripler') {
+    jar.baseName = 'tripler'
+    test.dependsOn ':UpperCaser:test'
+    test.shouldRunAfter ':UpperCaser:test'
+}
+
+project(':Logger') {
+    jar.baseName = 'logger'
+    test.dependsOn ':Tripler:test'
+    test.shouldRunAfter ':Tripler:test'
+}
+
+def dockerCompose = 'docker-compose -f kafka-docker/docker-compose-single-broker.yml'
+
+task composeUp(type: Exec) {
+    executable 'bash'
+    args '-c', """
+                    $dockerCompose down -v \
+                    && $dockerCompose up -d --build \
+                    && echo "waiting 15 seconds for kafka bootstrap..." \
+                    && sleep 15
+               """
+}
+
+task composeDown(type: Exec) {
+    executable 'bash'
+    args '-c', "$dockerCompose down -v"
+}
+
+project.subprojects.each { subProject ->
+    subProject.test.dependsOn composeUp
+    subProject.test.finalizedBy composeDown
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '4.0.1'
+}
+
+bootRepackage {
+	enabled = false
+}
+
+

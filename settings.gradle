@@ -1,0 +1,2 @@
+rootProject.name = 'SpringKafkaStream'
+include 'Api', 'Greater', 'Tripler', 'UpperCaser', 'Logger', 'MessagesReceiver'

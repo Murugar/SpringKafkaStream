@@ -1,0 +1,13 @@
+.DS_Store
+*.ipr
+*.iml
+*.iws
+cllasses/
+build/
+out/
+.gradle/
+gradle/
+!gradle/wrapper
+!gradlew*
+.idea/
+!*.idea/runConfigurations
